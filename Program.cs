@@ -1,6 +1,16 @@
+using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Tabasco.Services;
+
+
+Console.WriteLine("-------------------");
+var jsontest = File.ReadAllText("contacts.json");
+Console.WriteLine("-------------------");
+Console.WriteLine(jsontest);
+Console.WriteLine("-------------------");
+// var contacts = JsonSerializer.Deserialize<Contacts>(json);
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +35,7 @@ builder.Services.AddSwaggerGen(c =>
 		Description = "An API to send SMS using the Kavenegar service",
 	});
 });
+builder.Services.AddScoped<IContactService, ContactService>();
 var apiKey = Environment.GetEnvironmentVariable("KAVEHNEGAR_API_KEY");
 builder.Services.AddScoped<ISmsService>(provider =>
 {

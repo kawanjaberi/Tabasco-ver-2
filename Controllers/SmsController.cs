@@ -11,13 +11,15 @@ namespace Tabasco.Controllers
 	{
 		private readonly ILogger<SmsController> _logger;
 		private readonly ISmsService _smsService;
+		private readonly IContactService _contactService;
 		
 		// private readonly string senderNumber = Environment.GetEnvironmentVariable(KAVEHNEGAR_SENDER_NUMBER);
 		
-		public SmsController (ISmsService smsService, ILogger<SmsController> logger)
+		public SmsController (ISmsService smsService, IContactService contactService, ILogger<SmsController> logger)
 		{
-			_smsService	= 	smsService;
-			_logger		= 	logger;
+			_smsService		= 	smsService;
+			_contactService = 	contactService;
+			_logger			= 	logger;
 		}
 		
 		[HttpPost("sendteam/{team}")]
@@ -95,22 +97,33 @@ namespace Tabasco.Controllers
 				
 				foreach	 (var alert in payload.Alerts)
 				{
+
 					if (alert.Labels.TryGetValue("sms", out var smsEnabled) && smsEnabled == "on")
 					{
-						var message = $"!Alert [{alert.Status} - {alert.Labels["severity"]}]\n" +
-									$"{alert.Labels["alertname"]}\n" +
-									$"job: {alert.Labels["job"]}\n" +
-									$"instance: {alert.Labels["instance"]}\n" +
-									$"Description: {alert.Annotations["description"]}";
-									  
-						var smsRequest = new SmsRequest
+
+						var team			= alert.Labels.TryGetValue("smsteam", out var smsteam) ? smsteam : "devops";
+						_logger.LogInformation("-------------------");
+						_logger.LogInformation(team);
+						_logger.LogInformation("-------------------");
+						var contactNumbers	= _contactService.GetContactsNumbers(team);
+						_logger.LogInformation("Team: {team}, Contacts: {contacts}", team, string.Join(", ", contactNumbers));
+						var message	 		= $"!Alert [{alert.Status} - {alert.Labels["severity"]}]\n" +
+											$"{alert.Labels["alertname"]}\n" +
+											$"job: {alert.Labels["job"]}\n" +
+											$"instance: {alert.Labels["instance"]}\n" +
+											$"Description: {alert.Annotations["description"]}";
+											
+						foreach	(var number in contactNumbers)
 						{
-							Sender		= "",
-							Recipient	= "09185386168",
-							Message		= message
-						};
-						
-						await _smsService.SendSmsAsync(smsRequest);
+							var smsRequest = new SmsRequest
+							{
+								Sender		= "",
+								Recipient	= number,
+								Message		= message
+							};
+							await _smsService.SendSmsAsync(smsRequest);
+							
+						}
 					}
 				}
 				
